@@ -1,0 +1,3 @@
+[[benchmark]]
+  name = "default"
+  type = "write"

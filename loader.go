@@ -5,31 +5,24 @@ import (
 	"testing"
 
 	influxdb "github.com/influxdata/influxdb-client"
-	"github.com/mitchellh/mapstructure"
 )
 
 // [benchmark.write_sparse_data]
 type Config struct {
-	Benchmarks map[string]BenchmarkTemplate `toml:"benchmark"`
+	Benchmarks []map[string]interface{} `toml:"benchmark"`
 }
 
-type BenchmarkTemplate map[string]interface{}
+type Template struct {
+	Name     string
+	Type     string
+	Strategy string
+	Config   map[string]interface{}
+}
 
-func (t BenchmarkTemplate) Create() (Benchmark, error) {
-	var tmpl struct {
-		Type     string
-		Strategy string
-	}
-
-	if err := mapstructure.Decode(t, &tmpl); err != nil {
-		return nil, err
-	}
-	delete(t, "strategy")
-	delete(t, "type")
-
-	switch tmpl.Type {
+func (t *Template) Create() (Benchmark, error) {
+	switch t.Type {
 	case "write":
-		strategy := tmpl.Strategy
+		strategy := t.Strategy
 		if strategy == "" {
 			strategy = "default"
 		}
@@ -38,13 +31,13 @@ func (t BenchmarkTemplate) Create() (Benchmark, error) {
 		if fn == nil {
 			return nil, fmt.Errorf("unknown write strategy: %s", strategy)
 		}
-		return fn(t)
+		return fn(t.Config)
 	default:
-		return nil, fmt.Errorf("unknown benchmark type: %s", tmpl.Type)
+		return nil, fmt.Errorf("unknown benchmark type: %s", t.Type)
 	}
 }
 
-type CreateBenchmarkFn func(BenchmarkTemplate) (Benchmark, error)
+type CreateBenchmarkFn func(map[string]interface{}) (Benchmark, error)
 
 type Benchmark interface {
 	Run(c *influxdb.Client) (testing.BenchmarkResult, error)

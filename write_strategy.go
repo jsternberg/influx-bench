@@ -18,7 +18,7 @@ func RegisterWriteStrategy(name string, fn CreateBenchmarkFn) {
 
 type DefaultWriteStrategy struct{}
 
-func NewDefaultWriteStrategy(t BenchmarkTemplate) (Benchmark, error) {
+func NewDefaultWriteStrategy(config map[string]interface{}) (Benchmark, error) {
 	return &DefaultWriteStrategy{}, nil
 }
 
