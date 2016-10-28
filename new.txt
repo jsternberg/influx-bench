@@ -1,0 +1,1 @@
+BenchmarkWriteSparseData	      64	 298937903 ns/op
