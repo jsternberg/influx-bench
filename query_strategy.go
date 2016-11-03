@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	influxdb "github.com/influxdata/influxdb-client"
+	influxdb "github.com/jsternberg/influxdb-client"
 	"github.com/mitchellh/mapstructure"
 )
 

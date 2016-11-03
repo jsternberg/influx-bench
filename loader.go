@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	influxdb "github.com/influxdata/influxdb-client"
+	influxdb "github.com/jsternberg/influxdb-client"
 )
 
 // [benchmark.write_sparse_data]

@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	influxdb "github.com/influxdata/influxdb-client"
+	influxdb "github.com/jsternberg/influxdb-client"
 )
 
 type PointGenerator struct {
