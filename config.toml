@@ -1,3 +1,69 @@
 [[benchmark]]
-  name = "default"
+  name = "default_1k"
   type = "write"
+  num_points = 10
+  cardinality = 100
+
+[[benchmark]]
+  name = "default_100k"
+  type = "write"
+  num_points = 10000
+  cardinality = 100
+
+[[benchmark]]
+  name = "count_1k"
+  type = "query"
+  query = "SELECT count(value) FROM cpu"
+
+  [benchmark.provision]
+    num_points = 10
+    cardinality = 100
+
+[[benchmark]]
+  name = "count_100k"
+  type = "query"
+  query = "SELECT count(value) FROM cpu"
+
+  [benchmark.provision]
+    num_points = 10000
+    cardinality = 100
+
+[[benchmark]]
+  name = "count_groupBy_1k"
+  type = "query"
+  query = "SELECT count(value) FROM cpu GROUP BY host"
+
+  [benchmark.provision]
+    num_points = 10
+    cardinality = 100
+
+[[benchmark]]
+  name = "count_groupBy_100k"
+  type = "query"
+  query = "SELECT count(value) FROM cpu GROUP BY host"
+
+  [benchmark.provision]
+    num_points = 10000
+    cardinality = 100
+
+[[benchmark]]
+  name = "sparse_count_1k"
+  type = "query"
+  query = "SELECT count(value) FROM cpu GROUP BY host"
+
+  [benchmark.provision]
+    strategy = "sparse"
+    num_shards = 100
+    cardinality = 10
+    shard_duration = "1h"
+
+[[benchmark]]
+  name = "sparse_count_100k"
+  type = "query"
+  query = "SELECT count(value) FROM cpu GROUP BY host"
+
+  [benchmark.provision]
+    strategy = "sparse"
+    num_shards = 100
+    cardinality = 10000
+    shard_duration = "1h"

@@ -16,20 +16,23 @@ type Template struct {
 	Name     string
 	Type     string
 	Strategy string
+	Skip     bool
+	Seed     int64
 	Config   map[string]interface{}
 }
 
 func (t *Template) Create() (Benchmark, error) {
 	switch t.Type {
 	case "write":
-		strategy := t.Strategy
-		if strategy == "" {
-			strategy = "default"
-		}
-
-		fn := WriteStrategies[strategy]
+		fn := WriteStrategies[t.Strategy]
 		if fn == nil {
-			return nil, fmt.Errorf("unknown write strategy: %s", strategy)
+			return nil, fmt.Errorf("unknown write strategy: %s", t.Strategy)
+		}
+		return fn(t.Config)
+	case "query":
+		fn := QueryStrategies[t.Strategy]
+		if fn == nil {
+			return nil, fmt.Errorf("unknown query strategy: %s", t.Strategy)
 		}
 		return fn(t.Config)
 	default:

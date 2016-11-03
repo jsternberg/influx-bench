@@ -1,21 +1,32 @@
 package main
 
 import (
+	"math/rand"
 	"time"
 
 	influxdb "github.com/influxdata/influxdb-client"
 )
 
 type PointGenerator struct {
-	Name string
-	Tags []influxdb.Tag
-	C    chan influxdb.Point
+	Point     influxdb.Point
+	C         chan influxdb.Point
+	StartTime time.Time
 }
 
-func (g *PointGenerator) GeneratePoints(pointN int) {
-	now, _ := time.Parse(time.RFC3339, "2010-01-01T00:00:00Z")
+func NewPointGenerator(pt influxdb.Point, ch chan influxdb.Point, start time.Time) *PointGenerator {
+	return &PointGenerator{
+		Point:     pt,
+		C:         ch,
+		StartTime: start,
+	}
+}
+
+func (g *PointGenerator) GeneratePoints(pointN int, interval time.Duration) {
+	now := g.StartTime
 	for i := 0; i < pointN; i++ {
-		g.C <- influxdb.NewPointWithTags(g.Name, g.Tags, influxdb.Value(float64(i)), now)
-		now = now.Add(time.Minute)
+		g.Point.Fields = influxdb.Value(rand.Int63())
+		g.Point.Time = now
+		g.C <- g.Point
+		now = now.Add(interval)
 	}
 }
