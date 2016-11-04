@@ -137,6 +137,7 @@ func (opt WriteStrategyOptions) GetStartTime() (time.Time, error) {
 type DefaultWriteStrategy struct {
 	NumPoints            int `mapstructure:"num_points"`
 	Cardinality          int
+	MinTime              time.Duration `mapstructure:"min_time"`
 	Interval             time.Duration
 	WriteStrategyOptions `mapstructure:",squash"`
 }
@@ -145,6 +146,7 @@ func NewDefaultWriteStrategy(config map[string]interface{}) (Benchmark, error) {
 	b := &DefaultWriteStrategy{
 		Cardinality: 1,
 		Interval:    10 * time.Second,
+		MinTime:     time.Second,
 	}
 
 	decoderConfig := mapstructure.DecoderConfig{
@@ -177,7 +179,7 @@ func (b *DefaultWriteStrategy) Run(c *influxdb.Client) (testing.BenchmarkResult,
 		result.N++
 		result.T += d
 
-		if result.T >= time.Second {
+		if result.T >= b.MinTime {
 			if result.N < minRuns {
 				continue
 			}
