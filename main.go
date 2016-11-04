@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	influxdb "github.com/jsternberg/influxdb-client"
@@ -25,7 +26,7 @@ func benchName(tmpl Template) string {
 		name)
 }
 
-func main() {
+func realMain() int {
 	flHost := flag.StringP("host", "H", "", "host of influxdb instance")
 	flConfig := flag.StringP("config", "c", "", "config file to load")
 	flRun := flag.String("run", "", "run filter to use for tests")
@@ -45,14 +46,16 @@ func main() {
 			runFilter = re
 		}
 	}
+	exitStatus := 0
 
 	maxLen := 0
 	benchmarks := make([]Template, 0, len(cfg.Benchmarks))
 	for _, c := range cfg.Benchmarks {
 		tmpl := Template{Strategy: "default"}
 		if err := mapstructure.Decode(c, &tmpl); err != nil {
-			fmt.Println("ERR:", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+			exitStatus = 1
+			continue
 		}
 		tmpl.Name = benchName(tmpl)
 		if runFilter != nil && !runFilter.MatchString(tmpl.Name) {
@@ -69,6 +72,7 @@ func main() {
 		benchmarks = append(benchmarks, tmpl)
 	}
 
+	mustPing := true
 	c := influxdb.Client{Addr: *flHost}
 	for _, tmpl := range benchmarks {
 		if tmpl.Skip {
@@ -77,8 +81,22 @@ func main() {
 
 		b, err := tmpl.Create()
 		if err != nil {
-			fmt.Println("ERR:", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+			exitStatus = 1
+			continue
+		}
+
+		if mustPing {
+			if err := c.Ping(); err != nil {
+				fmt.Fprintf(os.Stderr, "WARN: unable to ping server, waiting for server...\n")
+				for {
+					time.Sleep(time.Second)
+					if err := c.Ping(); err == nil {
+						break
+					}
+				}
+			}
+			mustPing = false
 		}
 
 		// Reseed the random number generator for each test.
@@ -88,9 +106,16 @@ func main() {
 
 		result, err := b.Run(&c)
 		if err != nil {
-			fmt.Println("ERR:", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "ERR: %s\n", err)
+			mustPing = true
+			exitStatus = 1
+			continue
 		}
 		fmt.Printf("%-*s\t%s\n", maxLen, tmpl.Name, result)
 	}
+	return exitStatus
+}
+
+func main() {
+	os.Exit(realMain())
 }
