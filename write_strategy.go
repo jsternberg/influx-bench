@@ -33,6 +33,8 @@ type WriteStrategyOptions struct {
 	StartTime     string `mapstructure:"start_time"`
 	Database      string
 	ShardDuration string `mapstructure:"shard_duration"`
+	NumWriters    int    `mapstructure:"num_writers"`
+	BatchSize     int    `mapstructure:"batch_size"`
 
 	f *os.File // reference to the temporary file for an autocreated database
 }
@@ -73,6 +75,57 @@ func (opt *WriteStrategyOptions) CleanUp(c *influxdb.Client) error {
 	return c.Execute(fmt.Sprintf(`DROP DATABASE "%s"`, opt.Database), nil)
 }
 
+func (opt *WriteStrategyOptions) WriteBatch(c *influxdb.Client, ch <-chan influxdb.Point) error {
+	batchSize := opt.BatchSize
+	if batchSize == 0 {
+		batchSize = 10000
+	}
+
+	numWriters := opt.NumWriters
+	if numWriters == 0 {
+		numWriters = 1
+	}
+
+	errch := make(chan error, 1)
+	var wg sync.WaitGroup
+	for i := 0; i < numWriters; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				if err := c.WriteBatch(opt.Database, influxdb.WriteOptions{}, func(w influxdb.Writer) error {
+					for i := 0; i < batchSize; i++ {
+						pt, ok := <-ch
+						if !ok {
+							return io.EOF
+						} else if err := w.WritePoint(pt); err != nil {
+							return err
+						}
+					}
+					return nil
+				}); err != nil {
+					if err == io.EOF {
+						return
+					}
+
+					select {
+					case errch <- err:
+					default:
+					}
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	select {
+	case err := <-errch:
+		return err
+	default:
+		return nil
+	}
+}
+
 func (opt WriteStrategyOptions) GetStartTime() (time.Time, error) {
 	s := opt.StartTime
 	if s == "" {
@@ -84,15 +137,23 @@ func (opt WriteStrategyOptions) GetStartTime() (time.Time, error) {
 type DefaultWriteStrategy struct {
 	NumPoints            int `mapstructure:"num_points"`
 	Cardinality          int
+	Interval             time.Duration
 	WriteStrategyOptions `mapstructure:",squash"`
 }
 
 func NewDefaultWriteStrategy(config map[string]interface{}) (Benchmark, error) {
 	b := &DefaultWriteStrategy{
 		Cardinality: 1,
+		Interval:    10 * time.Second,
 	}
 
-	if err := mapstructure.Decode(config, b); err != nil {
+	decoderConfig := mapstructure.DecoderConfig{
+		DecodeHook: mapstructure.StringToTimeDurationHookFunc(),
+		Result:     b,
+	}
+	if dec, err := mapstructure.NewDecoder(&decoderConfig); err != nil {
+		return nil, err
+	} else if err := dec.Decode(config); err != nil {
 		return nil, err
 	}
 
@@ -161,29 +222,14 @@ func (b *DefaultWriteStrategy) writePoints(c *influxdb.Client) (time.Duration, e
 
 		go func() {
 			defer wg.Done()
-			g.GeneratePoints(b.NumPoints, time.Minute)
+			g.GeneratePoints(b.NumPoints, b.Interval)
 		}()
 	}
 	go func() { wg.Wait(); close(ch) }()
 
 	start := time.Now()
-	for {
-		if err := c.WriteBatch(b.Database, influxdb.WriteOptions{}, func(w influxdb.Writer) error {
-			for i := 0; i < 1000; i++ {
-				pt, ok := <-ch
-				if !ok {
-					return io.EOF
-				} else if err := w.WritePoint(pt); err != nil {
-					return err
-				}
-			}
-			return nil
-		}); err != nil {
-			if err != io.EOF {
-				return 0, err
-			}
-			break
-		}
+	if err := b.WriteBatch(c, ch); err != nil {
+		return 0, err
 	}
 	return time.Now().Sub(start), nil
 }
@@ -283,23 +329,8 @@ func (b *SparseWriteStrategy) writePoints(c *influxdb.Client) (time.Duration, er
 	go func() { wg.Wait(); close(ch) }()
 
 	start := time.Now()
-	for {
-		if err := c.WriteBatch(b.Database, influxdb.WriteOptions{}, func(w influxdb.Writer) error {
-			for i := 0; i < 1000; i++ {
-				pt, ok := <-ch
-				if !ok {
-					return io.EOF
-				} else if err := w.WritePoint(pt); err != nil {
-					return err
-				}
-			}
-			return nil
-		}); err != nil {
-			if err != io.EOF {
-				return 0, err
-			}
-			break
-		}
+	if err := b.WriteBatch(c, ch); err != nil {
+		return 0, err
 	}
 	return time.Now().Sub(start), nil
 }

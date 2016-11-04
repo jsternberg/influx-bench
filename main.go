@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/BurntSushi/toml"
 	influxdb "github.com/jsternberg/influxdb-client"
 	"github.com/mitchellh/mapstructure"
+	flag "github.com/spf13/pflag"
 )
 
 func benchName(tmpl Template) string {
@@ -26,8 +26,8 @@ func benchName(tmpl Template) string {
 }
 
 func main() {
-	flHost := flag.String("H", "", "host of influxdb instance")
-	flConfig := flag.String("config", "", "config file to load")
+	flHost := flag.StringP("host", "H", "", "host of influxdb instance")
+	flConfig := flag.StringP("config", "c", "", "config file to load")
 	flRun := flag.String("run", "", "run filter to use for tests")
 	flag.Parse()
 

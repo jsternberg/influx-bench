@@ -1,13 +1,19 @@
 [[benchmark]]
-  name = "default_1k"
+  name = "100-1K"
   type = "write"
-  num_points = 10
+  num_points = 1000
   cardinality = 100
 
 [[benchmark]]
-  name = "default_100k"
+  name = "100-100K"
   type = "write"
-  num_points = 10000
+  num_points = 1000000
+  cardinality = 100
+
+[[benchmark]]
+  name = "100-1M"
+  type = "write"
+  num_points = 1000000
   cardinality = 100
 
 [[benchmark]]
