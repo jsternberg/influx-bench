@@ -304,7 +304,7 @@ func (b *SparseWriteStrategy) writePoints(c *influxdb.Client) (time.Duration, er
 	if err != nil {
 		return 0, err
 	}
-	ch := make(chan influxdb.Point, b.Cardinality*b.NumShards)
+	ch := make(chan influxdb.Point, 1500)
 	hostTemplate := fmt.Sprintf("server%%0%dd", len(strconv.Itoa(b.Cardinality-1)))
 
 	var wg sync.WaitGroup
